@@ -111,7 +111,7 @@ def test_run(run_data):
     gb.destroy()
 
 
-def getTrackingMock(gb: GrowthBook):
+def getTrackingMock(gb):
     calls = []
 
     def track(experiment, result):

@@ -1,44 +1,45 @@
 #!/usr/bin/env python
-"""
+u"""
 This is the Python client library for GrowthBook, the open-source
 feature flagging and A/B testing platform.
 More info at https://www.growthbook.io
 """
 
+from __future__ import division
+from __future__ import absolute_import
 import re
-from urllib.parse import urlparse, parse_qs
-from typing import Optional
+from urlparse import urlparse, parse_qs
 
 
-def fnv1a32(str: str) -> str:
+def fnv1a32(unicode):
     hval = 0x811C9DC5
     prime = 0x01000193
     uint32_max = 2 ** 32
-    for s in str:
+    for s in unicode:
         hval = hval ^ ord(s)
         hval = (hval * prime) % uint32_max
     return hval
 
 
-def gbhash(str: str) -> float:
-    n = fnv1a32(str)
+def gbhash(unicode):
+    n = fnv1a32(unicode)
     return (n % 1000) / 1000
 
 
-def inNamespace(userId: str, namespace: "tuple[str,float,float]") -> bool:
-    n = gbhash(userId + "__" + namespace[0])
+def inNamespace(userId, namespace):
+    n = gbhash(userId + u"__" + namespace[0])
     return n >= namespace[1] and n < namespace[2]
 
 
-def getEqualWeights(numVariations: int) -> "list[float]":
+def getEqualWeights(numVariations):
     if numVariations < 1:
         return []
-    return [1 / numVariations for i in range(numVariations)]
+    return [1 / numVariations for i in xrange(numVariations)]
 
 
 def getBucketRanges(
-    numVariations: int, coverage: float = 1, weights: "list[float]" = None
-) -> "list[tuple[float,float]]":
+    numVariations, coverage = 1, weights = None
+):
     if coverage < 0:
         coverage = 0
     if coverage > 1:
@@ -60,14 +61,14 @@ def getBucketRanges(
     return ranges
 
 
-def chooseVariation(n: float, ranges: "list[tuple[float,float]]") -> int:
+def chooseVariation(n, ranges):
     for i, r in enumerate(ranges):
         if n >= r[0] and n < r[1]:
             return i
     return -1
 
 
-def getQueryStringOverride(id: str, url: str, numVariations: int) -> Optional[int]:
+def getQueryStringOverride(id, url, numVariations):
     res = urlparse(url)
     if not res.query:
         return None
@@ -83,15 +84,15 @@ def getQueryStringOverride(id: str, url: str, numVariations: int) -> Optional[in
     return varId
 
 
-def evalCondition(attributes: dict, condition: dict) -> bool:
-    if "$or" in condition:
-        return evalOr(attributes, condition["$or"])
-    if "$nor" in condition:
-        return not evalOr(attributes, condition["$nor"])
-    if "$and" in condition:
-        return evalAnd(attributes, condition["$and"])
-    if "$not" in condition:
-        return not evalCondition(attributes, condition["$not"])
+def evalCondition(attributes, condition):
+    if u"$or" in condition:
+        return evalOr(attributes, condition[u"$or"])
+    if u"$nor" in condition:
+        return not evalOr(attributes, condition[u"$nor"])
+    if u"$and" in condition:
+        return evalAnd(attributes, condition[u"$and"])
+    if u"$not" in condition:
+        return not evalCondition(attributes, condition[u"$not"])
 
     for key, value in condition.items():
         if not evalConditionValue(value, getPath(attributes, key)):
@@ -100,7 +101,7 @@ def evalCondition(attributes: dict, condition: dict) -> bool:
     return True
 
 
-def evalOr(attributes, conditions) -> bool:
+def evalOr(attributes, conditions):
     if len(conditions) == 0:
         return True
 
@@ -110,41 +111,41 @@ def evalOr(attributes, conditions) -> bool:
     return False
 
 
-def evalAnd(attributes, conditions) -> bool:
+def evalAnd(attributes, conditions):
     for condition in conditions:
         if not evalCondition(attributes, condition):
             return False
     return True
 
 
-def isOperatorObject(obj) -> bool:
+def isOperatorObject(obj):
     for key in obj.keys():
-        if key[0] != "$":
+        if key[0] != u"$":
             return False
     return True
 
 
-def getType(attributeValue) -> str:
+def getType(attributeValue):
     t = type(attributeValue)
 
     if attributeValue is None:
-        return "null"
+        return u"null"
     if t is int or t is float:
-        return "number"
-    if t is str:
-        return "string"
+        return u"number"
+    if t is unicode:
+        return u"string"
     if t is list or t is set:
-        return "array"
+        return u"array"
     if t is dict:
-        return "object"
+        return u"object"
     if t is bool:
-        return "boolean"
-    return "unknown"
+        return u"boolean"
+    return u"unknown"
 
 
 def getPath(attributes, path):
     current = attributes
-    for segment in path.split("."):
+    for segment in path.split(u"."):
         if type(current) is dict and segment in current:
             current = current[segment]
         else:
@@ -152,7 +153,7 @@ def getPath(attributes, path):
     return current
 
 
-def evalConditionValue(conditionValue, attributeValue) -> bool:
+def evalConditionValue(conditionValue, attributeValue):
     if type(conditionValue) is dict and isOperatorObject(conditionValue):
         for key, value in conditionValue.items():
             if not evalOperatorCondition(key, attributeValue, value):
@@ -161,7 +162,7 @@ def evalConditionValue(conditionValue, attributeValue) -> bool:
     return conditionValue == attributeValue
 
 
-def elemMatch(condition, attributeValue) -> bool:
+def elemMatch(condition, attributeValue):
     if not type(attributeValue) is list:
         return False
 
@@ -176,36 +177,36 @@ def elemMatch(condition, attributeValue) -> bool:
     return False
 
 
-def evalOperatorCondition(operator, attributeValue, conditionValue) -> bool:
-    if operator == "$eq":
+def evalOperatorCondition(operator, attributeValue, conditionValue):
+    if operator == u"$eq":
         return attributeValue == conditionValue
-    elif operator == "$ne":
+    elif operator == u"$ne":
         return attributeValue != conditionValue
-    elif operator == "$lt":
+    elif operator == u"$lt":
         return attributeValue < conditionValue
-    elif operator == "$lte":
+    elif operator == u"$lte":
         return attributeValue <= conditionValue
-    elif operator == "$gt":
+    elif operator == u"$gt":
         return attributeValue > conditionValue
-    elif operator == "$gte":
+    elif operator == u"$gte":
         return attributeValue >= conditionValue
-    elif operator == "$regex":
+    elif operator == u"$regex":
         try:
             r = re.compile(conditionValue)
             return bool(r.search(attributeValue))
         except Exception:
             return False
-    elif operator == "$in":
+    elif operator == u"$in":
         return attributeValue in conditionValue
-    elif operator == "$nin":
+    elif operator == u"$nin":
         return not (attributeValue in conditionValue)
-    elif operator == "$elemMatch":
+    elif operator == u"$elemMatch":
         return elemMatch(conditionValue, attributeValue)
-    elif operator == "$size":
+    elif operator == u"$size":
         if not (type(attributeValue) is list):
             return False
         return evalConditionValue(conditionValue, len(attributeValue))
-    elif operator == "$all":
+    elif operator == u"$all":
         if not (type(attributeValue) is list):
             return False
         for cond in conditionValue:
@@ -216,13 +217,13 @@ def evalOperatorCondition(operator, attributeValue, conditionValue) -> bool:
             if not passing:
                 return False
         return True
-    elif operator == "$exists":
+    elif operator == u"$exists":
         if not conditionValue:
             return attributeValue is None
         return attributeValue is not None
-    elif operator == "$type":
+    elif operator == u"$type":
         return getType(attributeValue) == conditionValue
-    elif operator == "$not":
+    elif operator == u"$not":
         return not evalConditionValue(conditionValue, attributeValue)
     return False
 
@@ -230,20 +231,20 @@ def evalOperatorCondition(operator, attributeValue, conditionValue) -> bool:
 class Experiment(object):
     def __init__(
         self,
-        key: str,
-        variations: list,
-        weights: "list[float]" = None,
-        active: bool = True,
-        status: str = "running",
-        coverage: int = 1,
-        condition: dict = None,
-        namespace: "tuple[str,float,float]" = None,
-        url: str = "",
+        key,
+        variations,
+        weights = None,
+        active = True,
+        status = u"running",
+        coverage = 1,
+        condition = None,
+        namespace = None,
+        url = u"",
         include=None,
-        groups: list = None,
-        force: int = None,
-        hashAttribute: str = "id",
-    ) -> None:
+        groups = None,
+        force = None,
+        hashAttribute = u"id",
+    ):
         self.key = key
         self.variations = variations
         self.weights = weights
@@ -262,24 +263,24 @@ class Experiment(object):
 
     def to_dict(self):
         return {
-            "key": self.key,
-            "variations": self.variations,
-            "weights": self.weights,
-            "active": self.active,
-            "coverage": self.coverage,
-            "condition": self.condition,
-            "namespace": self.namespace,
-            "force": self.force,
-            "hashAttribute": self.hashAttribute,
+            u"key": self.key,
+            u"variations": self.variations,
+            u"weights": self.weights,
+            u"active": self.active,
+            u"coverage": self.coverage,
+            u"condition": self.condition,
+            u"namespace": self.namespace,
+            u"force": self.force,
+            u"hashAttribute": self.hashAttribute,
         }
 
-    def update(self, data: dict) -> None:
-        weights = data.get("weights", None)
-        status = data.get("status", None)
-        coverage = data.get("coverage", None)
-        url = data.get("url", None)
-        groups = data.get("groups", None)
-        force = data.get("force", None)
+    def update(self, data):
+        weights = data.get(u"weights", None)
+        status = data.get(u"status", None)
+        coverage = data.get(u"coverage", None)
+        url = data.get(u"url", None)
+        groups = data.get(u"groups", None)
+        force = data.get(u"force", None)
 
         if weights is not None:
             self.weights = weights
@@ -298,14 +299,14 @@ class Experiment(object):
 class Result(object):
     def __init__(
         self,
-        variationId: int,
-        inExperiment: bool,
+        variationId,
+        inExperiment,
         value,
-        hashUsed: bool,
-        hashAttribute: str,
-        hashValue: str,
-        featureId: str,
-    ) -> None:
+        hashUsed,
+        hashAttribute,
+        hashValue,
+        featureId,
+    ):
         self.variationId = variationId
         self.inExperiment = inExperiment
         self.value = value
@@ -314,47 +315,47 @@ class Result(object):
         self.hashValue = hashValue
         self.featureId = featureId or None
 
-    def to_dict(self) -> dict:
+    def to_dict(self):
         return {
-            "featureId": self.featureId,
-            "variationId": self.variationId,
-            "inExperiment": self.inExperiment,
-            "value": self.value,
-            "hashUsed": self.hashUsed,
-            "hashAttribute": self.hashAttribute,
-            "hashValue": self.hashValue,
+            u"featureId": self.featureId,
+            u"variationId": self.variationId,
+            u"inExperiment": self.inExperiment,
+            u"value": self.value,
+            u"hashUsed": self.hashUsed,
+            u"hashAttribute": self.hashAttribute,
+            u"hashValue": self.hashValue,
         }
 
 
 class Feature(object):
-    def __init__(self, defaultValue=None, rules: list = []) -> None:
+    def __init__(self, defaultValue=None, rules = []):
         self.defaultValue = defaultValue
-        self.rules: list[FeatureRule] = []
+        self.rules = []
         for rule in rules:
             if isinstance(rule, FeatureRule):
                 self.rules.append(rule)
             else:
                 self.rules.append(FeatureRule(**rule))
 
-    def to_dict(self) -> dict:
+    def to_dict(self):
         return {
-            "defaultValue": self.defaultValue,
-            "rules": [rule.to_dict() for rule in self.rules],
+            u"defaultValue": self.defaultValue,
+            u"rules": [rule.to_dict() for rule in self.rules],
         }
 
 
 class FeatureRule(object):
     def __init__(
         self,
-        key: str = "",
-        variations: list = None,
-        weights: "list[float]" = None,
-        coverage: int = 1,
-        condition: dict = None,
-        namespace: "tuple[str,float,float]" = None,
+        key = u"",
+        variations = None,
+        weights = None,
+        coverage = 1,
+        condition = None,
+        namespace = None,
         force=None,
-        hashAttribute: str = "id",
-    ) -> None:
+        hashAttribute = u"id",
+    ):
         self.key = key
         self.variations = variations
         self.weights = weights
@@ -364,24 +365,24 @@ class FeatureRule(object):
         self.force = force
         self.hashAttribute = hashAttribute
 
-    def to_dict(self) -> dict:
+    def to_dict(self):
         data = {}
         if self.key:
-            data["key"] = self.key
+            data[u"key"] = self.key
         if self.variations is not None:
-            data["variations"] = self.variations
+            data[u"variations"] = self.variations
         if self.weights is not None:
-            data["weights"] = self.weights
+            data[u"weights"] = self.weights
         if self.coverage != 1:
-            data["coverage"] = self.coverage
+            data[u"coverage"] = self.coverage
         if self.condition is not None:
-            data["condition"] = self.condition
+            data[u"condition"] = self.condition
         if self.namespace is not None:
-            data["namespace"] = self.namespace
+            data[u"namespace"] = self.namespace
         if self.force is not None:
-            data["force"] = self.force
-        if self.hashAttribute != "id":
-            data["hashAttribute"] = self.hashAttribute
+            data[u"force"] = self.force
+        if self.hashAttribute != u"id":
+            data[u"hashAttribute"] = self.hashAttribute
 
         return data
 
@@ -390,10 +391,10 @@ class FeatureResult(object):
     def __init__(
         self,
         value,
-        source: str,
-        experiment: Experiment = None,
-        experimentResult: Result = None,
-    ) -> None:
+        source,
+        experiment = None,
+        experimentResult = None,
+    ):
         self.value = value
         self.source = source
         self.experiment = experiment
@@ -401,17 +402,17 @@ class FeatureResult(object):
         self.on = bool(value)
         self.off = not bool(value)
 
-    def to_dict(self) -> dict:
+    def to_dict(self):
         data = {
-            "value": self.value,
-            "source": self.source,
-            "on": self.on,
-            "off": self.off,
+            u"value": self.value,
+            u"source": self.source,
+            u"on": self.on,
+            u"off": self.off,
         }
         if self.experiment:
-            data["experiment"] = self.experiment.to_dict()
+            data[u"experiment"] = self.experiment.to_dict()
         if self.experimentResult:
-            data["experimentResult"] = self.experimentResult.to_dict()
+            data[u"experimentResult"] = self.experimentResult.to_dict()
 
         return data
 
@@ -419,22 +420,22 @@ class FeatureResult(object):
 class GrowthBook(object):
     def __init__(
         self,
-        enabled: bool = True,
-        attributes: dict = {},
-        url: str = "",
-        features: dict = {},
-        qaMode: bool = False,
+        enabled = True,
+        attributes = {},
+        url = u"",
+        features = {},
+        qaMode = False,
         trackingCallback=None,
         # Deprecated args
-        user: dict = {},
-        groups: dict = {},
-        overrides: dict = {},
-        forcedVariations: dict = {},
+        user = {},
+        groups = {},
+        overrides = {},
+        forcedVariations = {},
     ):
         self._enabled = enabled
         self._attributes = attributes
         self._url = url
-        self._features: dict[str, Feature] = {}
+        self._features = {}
 
         if features:
             self.setFeatures(features)
@@ -452,7 +453,7 @@ class GrowthBook(object):
         self._assigned = {}
         self._subscriptions = set()
 
-    def setFeatures(self, features: dict) -> None:
+    def setFeatures(self, features):
         self._features = {}
         for key, feature in features.items():
             if isinstance(feature, Feature):
@@ -460,16 +461,16 @@ class GrowthBook(object):
             else:
                 self._features[key] = Feature(**feature)
 
-    def getFeatures(self) -> "dict[str,Feature]":
+    def getFeatures(self):
         return self._features
 
-    def setAttributes(self, attributes: dict) -> None:
+    def setAttributes(self, attributes):
         self._attributes = attributes
 
-    def getAttributes(self) -> dict:
+    def getAttributes(self):
         return self._attributes
 
-    def destroy(self) -> None:
+    def destroy(self):
         self._subscriptions.clear()
         self._tracked.clear()
         self._assigned.clear()
@@ -480,19 +481,19 @@ class GrowthBook(object):
         self._attributes.clear()
         self._features.clear()
 
-    def isOn(self, key: str) -> bool:
+    def isOn(self, key):
         return self.evalFeature(key).on
 
-    def isOff(self, key: str) -> bool:
+    def isOff(self, key):
         return self.evalFeature(key).off
 
-    def getFeatureValue(self, key: str, fallback):
+    def getFeatureValue(self, key, fallback):
         res = self.evalFeature(key)
         return res.value if res.value is not None else fallback
 
-    def evalFeature(self, key: str) -> FeatureResult:
+    def evalFeature(self, key):
         if key not in self._features:
-            return FeatureResult(None, "unknownFeature")
+            return FeatureResult(None, u"unknownFeature")
 
         feature = self._features[key]
         for rule in feature.rules:
@@ -509,7 +510,7 @@ class GrowthBook(object):
 
                     if n > rule.coverage:
                         continue
-                return FeatureResult(rule.force, "force")
+                return FeatureResult(rule.force, u"force")
 
             if rule.variations is None:
                 continue
@@ -529,31 +530,31 @@ class GrowthBook(object):
             if not result.inExperiment:
                 continue
 
-            return FeatureResult(result.value, "experiment", exp, result)
+            return FeatureResult(result.value, u"experiment", exp, result)
 
-        return FeatureResult(feature.defaultValue, "defaultValue")
+        return FeatureResult(feature.defaultValue, u"defaultValue")
 
     def getAllResults(self):
         return self._assigned.copy()
 
-    def _getHashValue(self, attr: str) -> str:
+    def _getHashValue(self, attr):
         if attr in self._attributes:
-            return str(self._attributes[attr] or "")
+            return unicode(self._attributes[attr] or u"")
         if attr in self._user:
-            return str(self._user[attr] or "")
-        return ""
+            return unicode(self._user[attr] or u"")
+        return u""
 
 
-    def _fireSubscriptions(self, experiment: Experiment, result: Result):
+    def _fireSubscriptions(self, experiment, result):
         prev = self._assigned.get(experiment.key, None)
         if (
             not prev
-            or prev["result"].inExperiment != result.inExperiment
-            or prev["result"].variationId != result.variationId
+            or prev[u"result"].inExperiment != result.inExperiment
+            or prev[u"result"].variationId != result.variationId
         ):
             self._assigned[experiment.key] = {
-                "experiment": experiment,
-                "result": result,
+                u"experiment": experiment,
+                u"result": result,
             }
             for cb in self._subscriptions:
                 try:
@@ -562,7 +563,7 @@ class GrowthBook(object):
                     pass
 
 
-    def run(self, experiment: Experiment) -> Result:
+    def run(self, experiment):
         result = self._run(experiment)
         self._fireSubscriptions(experiment, result)
         return result
@@ -571,7 +572,7 @@ class GrowthBook(object):
         self._subscriptions.add(callback)
         return lambda: self._subscriptions.remove(callback)
 
-    def _run(self, experiment: Experiment, featureId: str = None) -> Result:
+    def _run(self, experiment, featureId = None):
         # 1. If experiment has less than 2 variations, return immediately
         if len(experiment.variations) < 2:
             return self._getExperimentResult(experiment, featureId=featureId)
@@ -593,10 +594,10 @@ class GrowthBook(object):
                 experiment, self._forcedVariations[experiment.key], featureId=featureId
             )
         # 5. If experiment is a draft or not active, return immediately
-        if experiment.status == "draft" or not experiment.active:
+        if experiment.status == u"draft" or not experiment.active:
             return self._getExperimentResult(experiment, featureId=featureId)
         # 6. Get the user hash attribute and value
-        hashAttribute = experiment.hashAttribute or "id"
+        hashAttribute = experiment.hashAttribute or u"id"
         hashValue = self._getHashValue(hashAttribute)
         if not hashValue:
             return self._getExperimentResult(experiment, featureId=featureId)
@@ -653,7 +654,7 @@ class GrowthBook(object):
             return self._getExperimentResult(experiment, featureId=featureId)
 
         # 12.5. If experiment is stopped, return immediately
-        if experiment.status == "stopped":
+        if experiment.status == u"stopped":
             return self._getExperimentResult(experiment, featureId=featureId)
 
         # 13. Build the result object
@@ -665,14 +666,14 @@ class GrowthBook(object):
         # 15. Return the result
         return result
 
-    def _track(self, experiment: Experiment, result: Result) -> None:
+    def _track(self, experiment, result):
         if not self._trackingCallback:
             return None
         key = (
             result.hashAttribute
-            + str(result.hashValue)
+            + unicode(result.hashValue)
             + experiment.key
-            + str(result.variationId)
+            + unicode(result.variationId)
         )
         if not self._tracked.get(key):
             try:
@@ -681,7 +682,7 @@ class GrowthBook(object):
             except Exception:
                 pass
 
-    def _urlIsValid(self, pattern) -> bool:
+    def _urlIsValid(self, pattern):
         if not self._url:
             return False
 
@@ -690,7 +691,7 @@ class GrowthBook(object):
             if r.search(self._url):
                 return True
 
-            pathOnly = re.sub(r"^[^/]*/", "/", re.sub(r"^https?:\/\/", "", self._url))
+            pathOnly = re.sub(ur"^[^/]*/", u"/", re.sub(ur"^https?:\/\/", u"", self._url))
             if r.search(pathOnly):
                 return True
             return False
@@ -698,9 +699,9 @@ class GrowthBook(object):
             return True
 
     def _getExperimentResult(
-        self, experiment: Experiment, variationId: int = -1, hashUsed: bool = False, featureId:str = None
-    ) -> Result:
-        hashAttribute = experiment.hashAttribute or "id"
+        self, experiment, variationId = -1, hashUsed = False, featureId = None
+    ):
+        hashAttribute = experiment.hashAttribute or u"id"
 
         inExperiment = True
         if variationId < 0 or variationId > len(experiment.variations) - 1:
